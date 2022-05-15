@@ -13,8 +13,8 @@ function _init()
 	lastbtn5=false
 	--starfield background
 	stars1={} --x,y
- stars2={} --x,y
- stars3={} --x,y
+	stars2={} --x,y
+	stars3={} --x,y
 	for i=0,75 do
 		local star={}
 		star.x=flr(rnd(128))
@@ -183,7 +183,8 @@ function update_game()
 		if inx and iny then
 			--it's a hit!
 			par.hp-=1
-			if(par.hp<=0)game_over("a hog killed parry!") else sfx(9,2)			deli(hogs,i)
+			if(par.hp<=0)game_over("a hog killed parry!") else sfx(9,2)
+			deli(hogs,i)
 		end
 	end
 	--parry-ring collisions
