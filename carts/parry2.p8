@@ -1,13 +1,44 @@
 pico-8 cartridge // http://www.pico-8.com
 version 36
 __lua__
---parry 2: parry vs. uncle matt
+--parry ii: the quest for uncle matt
 --by electroly
 
 function _init()
-	difficulty=2
+	--show cpu and ram
+	show_debug_info=true
 
- --last btn state, for edge trig
+	--0=easy, 1=medium, 2=hard
+	difficulty=0
+
+	--button constants
+	btn_l=0
+	btn_r=1
+	btn_u=2
+	btn_d=3
+	btn_o=4
+	btn_x=5
+	
+	--color constants
+	clr_bla=0
+	clr_dblu=1
+	clr_dpur=2
+	clr_dgre=3
+	clr_bro=4
+	clr_dgra=5
+	clr_lgra=6
+	clr_whi=7
+	clr_red=8
+	clr_ora=9
+	clr_yel=10
+	clr_gre=11
+	clr_blu=12
+	clr_lav=13
+	clr_pin=14
+	clr_pea=15
+
+ --last btn state, for edge
+ --triggering
  lstbtn={}
  btnup={}
  btndn={}
@@ -16,21 +47,35 @@ function _init()
  	btnup[i]={}
  	btndn[i]={}
  end
+
+	init_font1()
  
 	--scenes
-	scn={}
-	scn.title=0
-	scn.intro=1
-	scn.gamesuccess=2
-	scn.game01=10 --matt in diaper
-	scn.game02=11 --weightlift
+	scn={
+		title=0,
+		intro=1,
+		gamesuccess=2,
+		gamefailed=3,
+		nextgame=4,
+		game01=10, --matt in diaper
+		game02=11, --lift weights
+		game03=12 --find parry
+	}
 	
-	init_font1()
-	change_scene(scn.game02)
+	playlist={
+		scn.game01,
+		scn.game02,
+		scn.game03
+	}
+	playlist_success=scn.title
+	playlist_failed=scn.title
+	
+	change_scene(scn.nextgame)
 end
 
 function _update60()
 	ctr+=1
+	if(ctr<0)ctr=32000
 
 	--button edge triggering
 	for i=0,5 do
@@ -49,8 +94,12 @@ function _update60()
 		game01_update()
 	elseif scene==scn.game02 then
 		game02_update()
+	elseif scene==scn.game03 then
+		game03_update()
 	elseif scene==scn.gamesuccess then
-		change_scene(scn.intro)
+		gamesuccess_update()
+	elseif scene==scn.gamefailed then
+		gamefailed_update()
 	end
 end
 
@@ -71,81 +120,53 @@ function _draw()
 		game01_draw()
 	elseif scene==scn.game02 then
 		game02_draw()
+	elseif scene==scn.game03 then
+		game03_draw()
+	elseif scene==scn.gamesuccess then
+		gamesuccess_draw()
+	elseif scene==scn.gamefailed then
+		gamefailed_draw()
+	end
+	
+	if show_debug_info then
+		local mem=flr(100*stat(0)/2048)
+		local cyc=flr(100*stat(1))
+		print(
+			"c:"..cyc.."% m:"..mem.."%",
+			60,0,clr_red)
 	end
 end
 
 function change_scene(n)
+	if n==scn.nextgame then
+		if #playlist==0 then
+			n=playlist_success
+		else
+			n=playlist[1]
+			deli(playlist,1)
+		end
+	end
+	
 	scene=n
 	scst={} --scene state
 	ctr=0
 	music(-1)
-	if n==scn.title then
+	if scene==scn.title then
 		music(0)
-	elseif n==scn.intro then
+	elseif scene==scn.intro then
 		music(3)
-	elseif n==scn.game01 then
+	elseif scene==scn.game01 then
 		game01_init()
-	elseif n==scn.game02 then
+	elseif scene==scn.game02 then
 		game02_init()
+	elseif scene==scn.game03 then
+		game03_init()
+	elseif scene==scn.gamesuccess then
+		gamesuccess_init()
+	elseif scene==scn.gamefailed then
+		gamefailed_init()
 	end
 end
-
----font1
-function init_font1()
-	font1={}
-	font1.charmap={} --x,y,w,h
-	local h=5
-	
-	local lettersx={0,4,8,12,16,20,24,28,32,35,39,43,46,51,55,59,63,67,71,75,79,83,88,93,97,100,103}
-	local lettersy=48
-	local letters="abcdefghijklmnopqrstuvwxyz"
-	for i=1,#letters do
-		local ch=sub(letters,i,i)
-		local charmap={}
-		charmap.x=lettersx[i]
-	 charmap.y=lettersy
-		charmap.w=lettersx[i+1]-charmap.x
-		charmap.h=h
-		font1.charmap[ch]=charmap
-	end
-	
-	local numbersx={0,3,6,9,12,15,18,21,24,27,30,38,46,53,60,67,74,75,77,79,81,83,84,85,89}
-	local numbersy=53
-	local numbers="0123456789⬅️➡️⬆️⬇️❎🅾️., ():!?"
-	for i=1,#numbers do
-		local ch=sub(numbers,i,i)
-		local charmap={}
-		charmap.x=numbersx[i]
-		charmap.y=numbersy
-		charmap.w=numbersx[i+1]-charmap.x
-		charmap.h=h
-		font1.charmap[ch]=charmap
-	end
-end
-
-function print_font1(t,x,y)
-	for i=1,#t do
-		local ch=sub(t,i,i)
-		local rct=font1.charmap[ch]
-		if rct!=nil then
-			sspr(rct.x,rct.y,rct.w,rct.h,x,y)
-			x+=rct.w+1
-		end
-	end
-end
-
-function font1_width(t)
-	local x=0
-	for i=1,#t do
-		local ch=sub(t,i,i)
-		local rct=font1.charmap[ch]
-		if rct!=nil then
-			x+=rct.w+1
-		end
-	end
-	return x
-end
----end font1
 
 function draw_title_scene()
 	cls(1)
@@ -196,213 +217,8 @@ function draw_intro_scene()
 	if(ctr>=120)draw_dlg({"will m. rabbit has","imprisoned uncle matt","at franklin castle!","","are you a bad enough","bird to rescue uncle","matt?","","  ❎ continue"},20)
 end
 
-function draw_dlg(ts,y)
-	local maxw=0
-	for _,t in pairs(ts) do
-		maxw=max(font1_width(t),maxw)
-	end	
-	local x=centerx(maxw+16)
-	draw_dlg_box(x,y,maxw+16,16+#ts*6)
-	y+=8
-	for _,t in pairs(ts) do
-		print_font1(t,x+8,y,7)
-		y+=6
-	end
-end
-
-function draw_dlg_box(x,y,w,h)
-	--background
-	rectfill(x+1,y+1,x+w-2,y+h-2,13)
-	--top line
-	line(x+2,y,x+w-3,y,7)
-	--left line
-	line(x,y+2,x,y+h-3,7)
-	--right line
-	line(x+w-1,y+2,x+w-1,y+h-3,1)
-	--bottom line
-	line(x+2,y+h-1,x+w-3,y+h-1,1)
-	--upper left
-	spr(68,x,y)
-	--upper right
-	spr(69,x+w-8,y)
-	--lower left
-	spr(84,x,y+h-8)
-	--lower right
-	spr(85,x+w-8,y+h-8)
-end
-
-function print_wavy(t,x,y,c)
-	local clock=-2*3.14159*ctr/400
-	for i=1,#t do
-		local ch=sub(t,i,i)
-		local yoff=2*cos(clock+0.075*i)
-		print(ch,x+(i-1)*4,y+yoff,c)
-	end
-end
-
-function centerx(w)
-	return 64-w/2
-end
-
-function center_text(t)
-	return 64-#t*2
-end
-
---drawing utils--
-function poly_start(x,y,sclx,scly)
-	ply={}
-	ply.x=x
-	ply.y=y
-	ply.sclx=sclx
-	ply.scly=scly
-end
-
-function poly_line(c,pts)
-	local prevx=nil
-	local prevy=nil
-	for _,n in pairs(pts) do
-		local px=flr(n/100)
-		local py=n%100
-		if(prevx!=nil)line(ply.x+prevx*ply.sclx,ply.y+prevy*ply.sclx,ply.x+px*ply.scly,ply.y+py*ply.scly,c)
-		prevx=px
-		prevy=py
-	end
-end
-
-function poly(c,pts)
-	local px=ply.x
-	local py=ply.y
-	local sx=ply.sclx
-	local sy=ply.scly
-	local pts2={}
-	for i=1,#pts do
-		local x=px+flr(pts[i]/100)*sx
-		local y=py+pts[i]%100*sy
-		add(pts2,x)
-		add(pts2,y)
-	end
-	render_poly(pts2,c)
-end
-
-function polys(ts)
- --space-sep four digit ints
-	--line: 9999 cccc xxyy...
-	--poly: cccc xxyy...
-	--tt: 10:line 20:poly
-	--cc: color
-	for _,t in pairs(ts) do
-		local lst={}
-		local isline=false
-		for i=1,#t,5 do
-			local n=tonum(sub(t,i,i+3))
-			if n==9999 then
-				isline=true
-			else
-				add(lst,n)
-			end
-		end
-		local cccc=lst[1]
-		deli(lst,1)
-		if isline then
-			poly_line(cccc,lst)
-		else
-			poly(cccc,lst)
-		end
-		lst={}
-	end
-end
-
---the following function is by
---scgrn: https://www.lexaloffle.com/bbs/?tid=28312
-----
--- draws a filled convex polygon
--- v is an array of vertices
--- {x1, y1, x2, y2} etc
-function render_poly(v,col)
- col=col or 5
-
- -- initialize scan extents
- -- with ludicrous values
- local x1,x2={},{}
- for y=0,127 do
-  x1[y],x2[y]=128,-1
- end
- local y1,y2=128,-1
-
- -- scan convert each pair
- -- of vertices
- for i=1, #v/2 do
-  local next=i+1
-  if (next>#v/2) next=1
-
-  -- alias verts from array
-  local vx1=flr(v[i*2-1])
-  local vy1=flr(v[i*2])
-  local vx2=flr(v[next*2-1])
-  local vy2=flr(v[next*2])
-
-  if vy1>vy2 then
-   -- swap verts
-   local tempx,tempy=vx1,vy1
-   vx1,vy1=vx2,vy2
-   vx2,vy2=tempx,tempy
-  end 
-
-  -- skip horizontal edges and
-  -- offscreen polys
-  if vy1~=vy2 and vy1<128 and
-   vy2>=0 then
-
-   -- clip edge to screen bounds
-   if vy1<0 then
-    vx1=(0-vy1)*(vx2-vx1)/(vy2-vy1)+vx1
-    vy1=0
-   end
-   if vy2>127 then
-    vx2=(127-vy1)*(vx2-vx1)/(vy2-vy1)+vx1
-    vy2=127
-   end
-
-   -- iterate horizontal scans
-   for y=vy1,vy2 do
-    if (y<y1) y1=y
-    if (y>y2) y2=y
-
-    -- calculate the x coord for
-    -- this y coord using math!
-    x=(y-vy1)*(vx2-vx1)/(vy2-vy1)+vx1
-
-    if (x<x1[y]) x1[y]=x
-    if (x>x2[y]) x2[y]=x
-   end 
-  end
- end
-
- -- render scans
- for y=y1,y2 do
-  local sx1=flr(max(0,x1[y]))
-  local sx2=flr(min(127,x2[y]))
-
-  local c=col*16+col
-  local ofs1=flr((sx1+1)/2)
-  local ofs2=flr((sx2+1)/2)
-  memset(0x6000+(y*64)+ofs1,c,ofs2-ofs1)
-  pset(sx1,y,c)
-  pset(sx2,y,c)
- end 
-end
-
-function recthalftone(x1,y1,x2,y2,c1,c2)
-	for y=y1,y2 do
-		line(x1,y,x2,y,c1)
-		for x=x1+(y%2),x2,2 do
-			pset(x,y,c2)
-		end
-	end
-end
---end drawing utils--
-
---art--
+-->8
+--art
 function art_mattchamp(x,y,scl)
 	poly_start(
 		--the art doesn't start at
@@ -641,7 +457,70 @@ function art_barbell(x,y)
 	end
 	sspr(0,64,16,16,x,y,16,16,true)
 end
---end art--
+
+function art_timer(maxctr)
+	sspr(48,32,16,16,112,112)
+	local pct=ctr/maxctr
+	local i=flr(pct*8)
+	if(i<8)spr(72+i,116,116)
+end
+
+-->8
+--games
+
+function default_maxtime()
+	if(difficulty==1)return 400
+	if(difficulty==2)return 200
+	return 600
+end
+
+--gamesuccess--
+function gamesuccess_init()
+end
+
+function gamesuccess_update()
+	if(ctr==120)change_scene(scn.nextgame)
+end
+
+function gamesuccess_draw()
+	cls(1)
+	local t="good job!"
+	print_font1(t,
+		centerx(font1_width(t)),
+		30)
+	local s="s"
+	if(#playlist==1)s=""
+	t=#playlist.." game"..s.." left"
+	print_font1(t,
+		centerx(font1_width(t)),
+		40)
+
+	if (flr(ctr/30)%2)==0 then
+		art_parry_sitting(
+			55,70,0.4)
+	else
+		art_parry_flap1(45,
+			50,0.8)
+	end
+	art_parry_talons(
+		55,70,0.4)
+end
+--end gamesuccess--
+
+--gamefailed--
+function gamefailed_init()
+	
+end
+
+function gamefailed_update()
+	if(ctr==240)change_scene(playlist_failed)
+end
+
+function gamefailed_draw()
+	cls(1)
+	print("todo:gamefailed",0,0,7)
+end
+--end gamefailed--
 
 --game01--
 function game01_init()
@@ -653,8 +532,8 @@ function game01_init()
 	g01_dprscl=0.3 --diaper scale
 	g01_dprx=0
 	g01_dpry=115-100*g01_dprscl			
-	--set to ctr on success
 	g01_success_ctr=nil
+	g01_maxtime=default_maxtime()
 end
 
 function game01_update()
@@ -724,16 +603,11 @@ function game01_draw()
 		flr(g01_maty),
 		g01_matscl)
 
-	if g01_success_ctr==nil then
-		print_font1(
-			"put matt in his diaper!",
-			8,116)
-		print_font1("use: ⬅️➡️⬇️",
-			8,122)
-	else
-		local t="good job!"
-		print_font1(t,center_text(t),116)
-	end
+	draw_footer(
+		"put matt in his diaper!",
+		"use: ⬅️➡️⬇️",
+		g01_maxtime,
+		g01_success_ctr)
 end
 --end game01--
 
@@ -744,6 +618,7 @@ function game02_init()
 	g02_success_ctr=nil
 	g02_y=70
 	g02_vy=0
+	g02_maxtime=default_maxtime()
 end
 
 function game02_update()
@@ -752,12 +627,12 @@ function game02_update()
 	if(difficulty==1)impulse=1.35
 	if(difficulty==2)impulse=1.3
 	
-	if g02_success_ctr==nil
-			and g02_y<=-5 then
-		sfx(10,3)
-		g02_success_ctr=ctr
-	end
-	if g02_success_ctr!=nil then
+	if g02_success_ctr==nil then
+		if g02_y<=-5 then
+			sfx(10,3)
+			g02_success_ctr=ctr
+		end
+	else
 		if ctr-g02_success_ctr>60 then
 			change_scene(scn.gamesuccess)
 		end
@@ -793,7 +668,7 @@ function game02_draw()
 	recthalftone(0,23,127,44,1,2)
 	rectfill(0,45,127,66,2)
 	recthalftone(0,67,127,88,2,14)
-	rectfill(0,89,127,112,14)
+	rectfill(0,89,127,113,14)
 		
 	local px=50
 	local py=g02_y
@@ -807,18 +682,398 @@ function game02_draw()
 	art_barbell(px,py)
 	art_parry_talons(px+5,py+10,0.3)
 
-	if g02_success_ctr==nil then
-		print_font1(
-			"lift the weights!",
-			8,116)
-		print_font1("use: ❎🅾️",
-			8,122)
-	else
-		local t="champion!"
-		print_font1(t,center_text(t),116)
-	end
+	local maxtime=default_maxtime()
+
+	draw_footer(
+		"lift the weights!",
+		"use: ❎🅾️",
+		g02_maxtime,
+		g02_success_ctr)
 end
 --end game02--
+
+--game03--
+function game03_init()
+	g03_success_ctr=nil
+	g03_maxtime=default_maxtime()
+	g03_spotx=64
+	g03_spoty=60
+	g03_spotr=25
+	if(difficulty==1)g03_spotr=20
+	if(difficulty==2)g03_spotr=15
+	--put parry outside spotlight
+	repeat
+		g03_px=flr(rnd(128))
+		g03_py=flr(rnd(114))
+	until game03_dist()>1.1
+end
+
+--<1 = hit
+function game03_dist()
+	local centx=g03_px+5
+	local centy=g03_py+8
+	return dist(g03_spotx,
+		g03_spoty,centx,centy)
+		/g03_spotr
+end
+
+function game03_update()
+	--parry-spotlight collision
+	if g03_success_ctr==nil then
+		if game03_dist()<0.5 then
+			g03_success_ctr=ctr
+			sfx(10,3)
+		end
+	else
+		if ctr-g03_success_ctr>60 then
+			change_scene(scn.gamesuccess)
+		end
+		return
+	end
+
+	--move spotlight vert
+	if btn(btn_u) and
+			g03_spoty>0 then
+		g03_spoty-=1
+	elseif btn(btn_d) and
+			g03_spoty<112 then
+		g03_spoty+=1
+	end
+	
+	--move spotlight horiz
+	if btn(btn_l) and
+			g03_spotx>0 then
+		g03_spotx-=1
+	elseif btn(btn_r) and
+			g03_spotx<128 then
+		g03_spotx+=1
+	end
+end
+
+function game03_draw()
+	cls(7)
+	if g03_success_ctr==nil then
+		art_parry_sitting(
+			g03_px,g03_py,0.25)
+	else
+		art_parry_flap1(g03_px-5,
+			g03_py-9,0.45)
+	end
+	art_parry_talons(
+		g03_px,g03_py,0.25)
+	local bb_l=g03_spotx-g03_spotr
+	local bb_r=g03_spotx+g03_spotr
+	local bb_t=g03_spoty-g03_spotr
+	local bb_b=g03_spoty+g03_spotr
+	if(bb_l>0)rectfill(0,0,bb_l-1,127,0)
+	rectfill(bb_r+1,0,127,127,0)
+	if(bb_t>0)rectfill(0,0,127,bb_t-1,0)
+	rectfill(0,bb_b+1,127,127,0)		
+	for y=bb_t,bb_b,1 do
+		for x=bb_l,bb_r,1 do
+			if dist(x,y,g03_spotx,
+					g03_spoty)>g03_spotr then
+				pset(x,y,0)
+			else
+				break
+			end
+		end
+		for x=bb_r,bb_l,-1 do
+			if dist(x,y,g03_spotx,
+					g03_spoty)>g03_spotr then
+				pset(x,y,0)
+			else
+				break
+			end
+		end
+	end
+
+	draw_footer(
+		"find parry!",
+		"use: ⬅️➡️⬆️⬇️",
+		g03_maxtime,
+		g03_success_ctr)
+end
+--end game03--
+
+-->8
+--utilities
+
+---font1
+function init_font1()
+	font1={}
+	font1.charmap={} --x,y,w,h
+	local h=5
+	
+	local lettersx={0,4,8,12,16,20,24,28,32,35,39,43,46,51,55,59,63,67,71,75,79,83,88,93,97,100,103}
+	local lettersy=48
+	local letters="abcdefghijklmnopqrstuvwxyz"
+	for i=1,#letters do
+		local ch=sub(letters,i,i)
+		local charmap={}
+		charmap.x=lettersx[i]
+	 charmap.y=lettersy
+		charmap.w=lettersx[i+1]-charmap.x
+		charmap.h=h
+		font1.charmap[ch]=charmap
+	end
+	
+	local numbersx={0,3,6,9,12,15,18,21,24,27,30,38,46,53,60,67,74,75,77,79,81,83,84,85,89}
+	local numbersy=53
+	local numbers="0123456789⬅️➡️⬆️⬇️❎🅾️., ():!?"
+	for i=1,#numbers do
+		local ch=sub(numbers,i,i)
+		local charmap={}
+		charmap.x=numbersx[i]
+		charmap.y=numbersy
+		charmap.w=numbersx[i+1]-charmap.x
+		charmap.h=h
+		font1.charmap[ch]=charmap
+	end
+end
+
+function print_font1(t,x,y)
+	for i=1,#t do
+		local ch=sub(t,i,i)
+		local rct=font1.charmap[ch]
+		if rct!=nil then
+			sspr(rct.x,rct.y,rct.w,rct.h,x,y)
+			x+=rct.w+1
+		end
+	end
+end
+
+function font1_width(t)
+	local x=0
+	for i=1,#t do
+		local ch=sub(t,i,i)
+		local rct=font1.charmap[ch]
+		if rct!=nil then
+			x+=rct.w+1
+		end
+	end
+	return x
+end
+---end font1
+
+function draw_dlg(ts,y)
+	local maxw=0
+	for _,t in pairs(ts) do
+		maxw=max(font1_width(t),maxw)
+	end	
+	local x=centerx(maxw+16)
+	draw_dlg_box(x,y,maxw+16,16+#ts*6)
+	y+=8
+	for _,t in pairs(ts) do
+		print_font1(t,x+8,y,7)
+		y+=6
+	end
+end
+
+function draw_dlg_box(x,y,w,h)
+	--background
+	rectfill(x+1,y+1,x+w-2,y+h-2,13)
+	--top line
+	line(x+2,y,x+w-3,y,7)
+	--left line
+	line(x,y+2,x,y+h-3,7)
+	--right line
+	line(x+w-1,y+2,x+w-1,y+h-3,1)
+	--bottom line
+	line(x+2,y+h-1,x+w-3,y+h-1,1)
+	--upper left
+	spr(68,x,y)
+	--upper right
+	spr(69,x+w-8,y)
+	--lower left
+	spr(84,x,y+h-8)
+	--lower right
+	spr(85,x+w-8,y+h-8)
+end
+
+function print_wavy(t,x,y,c)
+	local clock=-2*3.14159*ctr/400
+	for i=1,#t do
+		local ch=sub(t,i,i)
+		local yoff=2*cos(clock+0.075*i)
+		print(ch,x+(i-1)*4,y+yoff,c)
+	end
+end
+
+function centerx(w)
+	return 64-w/2
+end
+
+function center_text(t)
+	return 64-#t*2
+end
+
+function poly_start(x,y,sclx,scly)
+	ply={}
+	ply.x=x
+	ply.y=y
+	ply.sclx=sclx
+	ply.scly=scly
+end
+
+function poly_line(c,pts)
+	local prevx=nil
+	local prevy=nil
+	for _,n in pairs(pts) do
+		local px=flr(n/100)
+		local py=n%100
+		if(prevx!=nil)line(ply.x+prevx*ply.sclx,ply.y+prevy*ply.sclx,ply.x+px*ply.scly,ply.y+py*ply.scly,c)
+		prevx=px
+		prevy=py
+	end
+end
+
+function poly(c,pts)
+	local px=ply.x
+	local py=ply.y
+	local sx=ply.sclx
+	local sy=ply.scly
+	local pts2={}
+	for i=1,#pts do
+		local x=px+flr(pts[i]/100)*sx
+		local y=py+pts[i]%100*sy
+		add(pts2,x)
+		add(pts2,y)
+	end
+	render_poly(pts2,c)
+end
+
+function polys(ts)
+ --space-sep four digit ints
+	--line: 9999 cccc xxyy...
+	--poly: cccc xxyy...
+	--tt: 10:line 20:poly
+	--cc: color
+	for _,t in pairs(ts) do
+		local lst={}
+		local isline=false
+		for i=1,#t,5 do
+			local n=tonum(sub(t,i,i+3))
+			if n==9999 then
+				isline=true
+			else
+				add(lst,n)
+			end
+		end
+		local cccc=lst[1]
+		deli(lst,1)
+		if isline then
+			poly_line(cccc,lst)
+		else
+			poly(cccc,lst)
+		end
+		lst={}
+	end
+end
+
+--the following function is by
+--scgrn: https://www.lexaloffle.com/bbs/?tid=28312
+----
+-- draws a filled convex polygon
+-- v is an array of vertices
+-- {x1, y1, x2, y2} etc
+function render_poly(v,col)
+ col=col or 5
+
+ -- initialize scan extents
+ -- with ludicrous values
+ local x1,x2={},{}
+ for y=0,127 do
+  x1[y],x2[y]=128,-1
+ end
+ local y1,y2=128,-1
+
+ -- scan convert each pair
+ -- of vertices
+ for i=1, #v/2 do
+  local next=i+1
+  if (next>#v/2) next=1
+
+  -- alias verts from array
+  local vx1=flr(v[i*2-1])
+  local vy1=flr(v[i*2])
+  local vx2=flr(v[next*2-1])
+  local vy2=flr(v[next*2])
+
+  if vy1>vy2 then
+   -- swap verts
+   local tempx,tempy=vx1,vy1
+   vx1,vy1=vx2,vy2
+   vx2,vy2=tempx,tempy
+  end 
+
+  -- skip horizontal edges and
+  -- offscreen polys
+  if vy1~=vy2 and vy1<128 and
+   vy2>=0 then
+
+   -- clip edge to screen bounds
+   if vy1<0 then
+    vx1=(0-vy1)*(vx2-vx1)/(vy2-vy1)+vx1
+    vy1=0
+   end
+   if vy2>127 then
+    vx2=(127-vy1)*(vx2-vx1)/(vy2-vy1)+vx1
+    vy2=127
+   end
+
+   -- iterate horizontal scans
+   for y=vy1,vy2 do
+    if (y<y1) y1=y
+    if (y>y2) y2=y
+
+    -- calculate the x coord for
+    -- this y coord using math!
+    x=(y-vy1)*(vx2-vx1)/(vy2-vy1)+vx1
+
+    if (x<x1[y]) x1[y]=x
+    if (x>x2[y]) x2[y]=x
+   end 
+  end
+ end
+
+ -- render scans
+ for y=y1,y2 do
+  local sx1=flr(max(0,x1[y]))
+  local sx2=flr(min(127,x2[y]))
+
+  local c=col*16+col
+  local ofs1=flr((sx1+1)/2)
+  local ofs2=flr((sx2+1)/2)
+  memset(0x6000+(y*64)+ofs1,c,ofs2-ofs1)
+  pset(sx1,y,c)
+  pset(sx2,y,c)
+ end 
+end
+
+function recthalftone(x1,y1,x2,y2,c1,c2)
+	for y=y1,y2 do
+		line(x1,y,x2,y,c1)
+		for x=x1+(y%2),x2,2 do
+			pset(x,y,c2)
+		end
+	end
+end
+
+function draw_footer(t1,t2,
+		maxtime,success_ctr)
+	rectfill(0,114,127,127,bg or 0)
+	if success_ctr==nil then
+		print_font1(t1,2,116)
+		print_font1(t2,2,123)
+		art_timer(maxtime)
+	end
+end
+
+function dist(x1,y1,x2,y2)
+	return sqrt(
+		(x2-x1)^2+(y2-y1)^2)
+end
 
 __gfx__
 00000000111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -853,22 +1108,22 @@ __gfx__
 163333336563366363333361333336333333333361116333a336511163311116333a333366166336363959593377775355555555333335553333755500000000
 16363366111665165633361133a3333e333333331115633333336111163111113333333311111661363959593335555333333333333333333333653300000000
 116566111111111111666111333333333a3333331116333333333611116116113333333311111111363aaaaa3333333333333333333333333333753300000000
-00777777775000000000000000000000007777777777770000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0777777777770000000000000000000007dddddddddddd7000000000000000000000000000000000000000000000000000000000000000000000000000000000
-750770000777700000000000000000007ddd777dddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770000077700000000000000000007dd7ddddddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770000077700000000000000000007d7dddddddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770000077700000000000000000007d7dddddddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-000777777777000000000000000000007d7dddddddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-0007777777700000000000000000000e7dddddddddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077700000000000000000000eeeee27dddddddddddddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-0007750077007700770070700e2e0e007dddddddddddd1d100000000000000000000000000000000000000000000000000000000000000000000000000000000
-005770070070707070707070000e0e007dddddddddddd1d100000000000000000000000000000000000000000000000000000000000000000000000000000000
-007770077770770077007070000e0e007dddddddddddd1d100000000000000000000000000000000000000000000000000000000000000000000000000000000
-057770070070707070705770000e0e007ddddddddddd1dd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-077770770770707070700070000e0eee7dddddddd111ddd100000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000007007000eeeee207dddddddddddd1000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000077500ee20000001111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00777777775000000000000000000000007777777777770000000002424000000033330000333500003335000044450000444500008885000088850000888500
+0777777777770000000000000000000007dddddddddddd70000000242400000003bbbb3003bb305003bb3050049940500499405008ee805008ee805008ee8050
+750770000777700000000000000000007ddd777dddddddd100000777777000003bbbbbb33bbb30333bbb300549994005499940058eee80058eee8005508e8005
+000770000077700000000000000000007dd7ddddddddddd100007666666700003bbbbbb33bbb33b33bbb300549994005499940058eee80058888800550088005
+000770000077700000000000000000007d7dddddddddddd1000766666666d0003bbbbbb33bbb3bb33bbb333349994005499940058ee800055000000550000005
+000770000077700000000000000000007d7dddddddddddd10076666666666d003bbbbbb33bbbbbb33bbbbbb349999405499940058e8000055000000550000005
+000777777777000000000000000000007d7dddddddddddd10076666666666d7003bbbb3003bbbb3003bbbb300499994004994050080000500500005005000050
+0007777777700000000000000000000e7dddddddddddddd10076666666666d700033330000333300003333000044440000444500005555000055550000555500
+00077700000000000000000000eeeee27dddddddddddddd10076666666666d600000000000000000000000000000000000000000000000000000000000000000
+0007750077007700770070700e2e0e007dddddddddddd1d10076666666666dd00000000000000000000000000000000000000000000000000000000000000000
+005770070070707070707070000e0e007dddddddddddd1d10076666666666d000000000000000000000000000000000000000000000000000000000000000000
+007770077770770077007070000e0e007dddddddddddd1d1000766666666d0000000000000000000000000000000000000000000000000000000000000000000
+057770070070707070705770000e0e007ddddddddddd1dd10000d666666d00000000000000000000000000000000000000000000000000000000000000000000
+077770770770707070700070000e0eee7dddddddd111ddd100000dddddd000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000007007000eeeee207dddddddddddd1000000024240000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000077500ee20000001111111111110000000002424000000000000000000000000000000000000000000000000000000000000000000000
 07707770077077777770777707777007777777770070707707770070770777007707770077777777007700077000770077077770000000000000000000000000
 70077007700770077000700770007007070007070707007070777077007700770077007700007007007700077000707077070070000000000000000000000000
 77077770700070077770770070777777070007077007007070770777007770770077707777007007007070707070707700770700000000000000000000000000
@@ -920,7 +1175,7 @@ __map__
 __sfx__
 000400002701027030270302703021030210302101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 491e00002b05028050186002b05028050000002b0500000026050260502605026050000000000000000000002b05028050000002b05028050000002b050000002d0502d0502d0502d0502b0502b0500000000000
-000100002b05028050186002b05028050000002b0500000026050260502605026050000000000000000000002b05028050000002b05028050000002b050000002d0502d0502d0502d0502b0502b0500000000000
+000100002b00028000186002b00028000000002b0000000026000260002600026000000000000000000000002b00028000000002b00028000000002b000000002d0002d0002d0002d0002b0002b0000000000000
 010f00201a653000033b603000031a62300003000030000321653000033b62300003216230000300003000031a653000033b603000031a623000030000300003216533b6233b6233b62321623000030000300003
 011e00002b05028050186002b05028050000002b0500000026050260502605028050240502400000000000002b05028050000002b05028050000002f05024603300503005030050300502b0002b0000000000000
 011e0020197321c7322073200702197321c7322073200702197321c7322073200702197321c73220732007021b7321e73221732007021b7321e73221732007021b7321e73221732007021b7321e7322173200702
@@ -931,6 +1186,13 @@ __sfx__
 010400002475024750247500000029750297502975000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0004000025350243502435023350223501f3501d35019350143500f35009350013500135000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300
 000500001d6501e630166201d6001e6001e6000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+011100001a7401e74021740157001a7401e74021740007001a7401e74021740007001a7401e740217400070013740177401a7400070013740177401a7400070013740177401a7400070013740177401a74000000
+0111000015720197201c7200000015720197201c7200000015720197201c7200000015720197201c7200000013720177201a7200070013720177201a7200070013720177201a7200070013720177201a72000700
+011100000b630000000e6000e6003d6100000000000000000b630000000b6000b6303d610000000b630000000b630000000b600000003d6100000000000000000b630000000b630000003d6100b6300000000000
+011100001a5701e5001e5001e5702150021500215701e50023570000000000000000000000000000000000001e57021570235702157023570215701e570000001c57000000000000000000000000000000000000
+001100001c5701a5701c5001c5701a57021500195001c50025570000000000000000235702157000000000001a5701a5701a5701a570000000000000000000000000000000000000000000000000000000000000
+001100001c5701c57000000000001a5701957000000000001c5701c5701c5701c5700000000000000000000028570000002857000000265702557000000000002857028570285702857000000000000000000000
+001100001c570000001a500000001a570000001957000000175700000000000000001957000000000002350017570000000000000000155700000000000000000000000000000000000000000000000000000000
 __music__
 00 01034344
 00 04034344
@@ -938,4 +1200,8 @@ __music__
 01 05060744
 00 05060744
 02 08090744
+01 0d0f1044
+00 0e0f1144
+00 0d0f1244
+02 0e0f1344
 
