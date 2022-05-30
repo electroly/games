@@ -36,6 +36,13 @@ function _init()
 	clr_lav=13
 	clr_pin=14
 	clr_pea=15
+	clr2=128 --offset
+	
+	pal_dark={[0]=0,129,130,131,132,1,
+		5,6,136,137,9,139,140,141,2,
+		143}
+	pal_black={[0]=0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0}
 
  --last btn state, for edge
  --triggering
@@ -66,10 +73,11 @@ function _init()
 		,gamefailed=3
 		,nextgame=4
 		,worldmap=5
+		,levelstart=6
 		,game01=10 --matt in diaper
 		,game02=11 --lift weights
 		,game03=12 --find parry
-		,lvl01=100
+		,lvl01=100 --buzz
 	}
 	
 	playlist={}
@@ -106,7 +114,7 @@ function _update60()
  end
 	
 	if scene==scn.title then
-		update_title_scene()
+		title_update()
 	elseif scene==scn.intro then
 		intro_update()
 	elseif scene==scn.worldmap then
@@ -121,12 +129,21 @@ function _update60()
 		gamesuccess_update()
 	elseif scene==scn.gamefailed then
 		gamefailed_update()
+	elseif scene==scn.levelstart then
+		levelstart_update()
 	elseif scene==scn.lvl01 then
 		lvl01_update()
 	end
 end
 
 function _draw()
+	--disable per-line palette
+	poke(0x5f5f,0)
+	memset(0x5f70,0,16)
+
+	--default palette
+	pal()
+
 	--if we just changed scene in
 	--update(), then we haven't
 	--yet ran update() for the new
@@ -136,7 +153,7 @@ function _draw()
 	if(ctr==0)return
 	
 	if scene==scn.title then
-		draw_title_scene()
+		title_draw()
 	elseif scene==scn.intro then
 		intro_draw()
 	elseif scene==scn.worldmap then
@@ -151,6 +168,8 @@ function _draw()
 		gamesuccess_draw()
 	elseif scene==scn.gamefailed then
 		gamefailed_draw()
+	elseif scene==scn.levelstart then
+		levelstart_draw()
 	elseif scene==scn.lvl01 then
 		lvl01_draw()
 	end
@@ -178,7 +197,7 @@ function change_scene(n)
 	scst={} --scene state
 	ctr=0
 	if scene==scn.title then
-		music(0)
+		title_init()
 	elseif scene==scn.intro then
 		intro_init()
 	elseif scene==scn.worldmap then
@@ -194,12 +213,32 @@ function change_scene(n)
 		gamesuccess_init()
 	elseif scene==scn.gamefailed then
 		gamefailed_init()
+	elseif scene==scn.levelstart then
+		levelstart_init()
 	elseif scene==scn.lvl01 then
 		lvl01_init()
 	end
 end
 
-function draw_title_scene()
+--title--
+function title_init()
+	music(0)
+	title_end_ctr=nil
+end
+
+function title_update()
+	if title_end_ctr==60 then
+		change_scene(scn.intro)
+	elseif title_end_ctr!=nil then
+		title_end_ctr+=1
+	elseif btndn[5] then
+		music(-1)
+		sfx(0,3)
+		title_end_ctr=0
+	end
+end
+
+function title_draw()
 	cls(1)
 	sspr(0,32,32,16,centerx(32),30)
 	local t="the quest for uncle matt"
@@ -210,22 +249,33 @@ function draw_title_scene()
 	print_font1(t,centerx(font1_width(t)),110)
 	t="(c) 2022 brian luft"
 	print_font1(t,centerx(font1_width(t)),120)
+	if title_end_ctr!=nil then
+		transition1(title_end_ctr/30)
+	end
 end
-
-function update_title_scene()
-	if(btndn[5])change_scene(scn.intro)
-end
+--end title--
 
 --intro--
 function intro_init()
 	music(3)
 	int_step=0
+	int_end_ctr=nil
 end
 
 function intro_update()
+	if int_end_ctr!=nil then
+		int_end_ctr+=1
+		if int_end_ctr==60 then
+			change_scene(scn.worldmap)
+		end
+		return
+	end
+	
  if int_step==0 then
  	sfx(0,3)
  	int_step=1
+	elseif int_step==7 then
+		int_end_ctr=0
 	elseif btndn[btn_x] then
 		sfx(0,3)
 		int_step+=1
@@ -264,15 +314,17 @@ function intro_draw()
 			,""
 			,"it's up to me to save him!"
 		})
-	elseif int_step==6 then
+	elseif int_step>=6 then
 		sam_dlg({
 			"i know! that's why i told"
 			,"you!"
 			,""
 			,"see ya!"
 		})
-	elseif int_step==7 then
-		change_scene(scn.worldmap)
+	end
+	
+	if int_end_ctr!=nil then
+		transition1(int_end_ctr/30)
 	end
 end
 --end intro--
@@ -284,6 +336,8 @@ function worldmap_init()
 	map_pulse=0
 	map_offx=0
 	map_offy=0
+	map_end_ctr=nil
+	map_end_next=nil --next scene
 end
 
 function worldmap_canmove(offx,offy)
@@ -292,6 +346,14 @@ function worldmap_canmove(offx,offy)
 end
 
 function worldmap_update()
+	if map_end_ctr!=nil then
+		map_end_ctr+=1
+		if map_end_ctr==60 then
+			change_scene(map_end_next)
+		end
+		return
+	end
+
 	map_pulse+=1
 	if statchg[50] then
 		if	(stat(50)%4)==0 then
@@ -307,7 +369,8 @@ function worldmap_update()
 		if map_px==4 and map_px==4 then
 			music(-1)
 			sfx(2,3)
-			change_scene(scn.lvl01)
+			map_end_next=scn.lvl01
+			map_end_ctr=0
 		end
 	end
 	
@@ -361,6 +424,10 @@ function worldmap_draw()
 	rectfill(60,121,127,127,1)
 	print_font1("use: ⬅️➡️⬆️⬇️❎",
 		64,122)
+	
+	if map_end_ctr!=nil then
+		transition1(map_end_ctr/30)
+	end
 end
 
 function worldmap_flip_waves()
@@ -381,12 +448,31 @@ end
 --lvl01--
 function lvl01_init()
 	l01_step=0
+	l01_end_ctr=nil
+	
+	playlist={
+		scn.game01
+		,scn.game02
+		,scn.game03
+	}
 end
 
 function lvl01_update()
+	if l01_end_ctr!=nil then
+		l01_end_ctr+=1
+		if l01_end_ctr==60 then
+			lvlstr_ts={
+				"complete 3 games",
+				"for buzz!"
+			}
+			change_scene(scn.levelstart)
+		end
+	end
+
 	if btndn[btn_x] then
 		sfx(0,3)
 		l01_step+=1
+		if(l01_step==5)l01_end_ctr=0
 	end
 end
 
@@ -394,9 +480,7 @@ function lvl01_draw()
 	rectpattern(0,0,127,127,
 		clr_whi,clr_dblu,
 		clr_whi,clr_dblu)
-	if ctr<60 then
-		cls(clr_bla)
-	elseif l01_step==0 then
+	if l01_step==0 then
 		buzz_dlg({
 			"hey, parry! parry!"
 			,""
@@ -420,13 +504,17 @@ function lvl01_draw()
 		buzz_dlg({
 			"i just need a few things..."
 		})
-	elseif l01_step==4 then
+	elseif l01_step>=4 then
 		parry_dlg({
 			"(sigh.) fine."
 			,""
 			,"but then i need to"
 			,"get back to my quest!"
 		})
+	end
+	
+	if l01_end_ctr!=nil then
+		transition1(l01_end_ctr/30)
 	end
 end
 --end lvl01--
@@ -776,6 +864,22 @@ function default_maxtime()
 	if(difficulty==2)return 200
 	return 600
 end
+
+--levelstart--
+function levelstart_init()
+	--caller set:
+	--lvlstr_ts
+end
+
+function levelstart_update()
+	if(ctr==180)change_scene(scn.nextgame)
+end
+
+function levelstart_draw()
+	cls(clr_dblu)
+	draw_dlg(lvlstr_ts,20,clr_dgra)
+end
+--end levelstart--
 
 --gamesuccess--
 function gamesuccess_init()
@@ -1145,7 +1249,7 @@ function print_font1(t,x,y,c)
 			x+=rct.w+1
 		end
 	end
-	if(c!=nil)pal()
+	if(c!=nil)pal(7,7)
 end
 
 function font1_width(t)
@@ -1378,23 +1482,28 @@ end
 
 function parry_dlg(ts)
 	art_portrait_parry(-10,10)
-	char_dlg(ts,"parry",clr_lav)
+	char_dlg(ts,"parry",clr2+clr_lav)
 end
 
 function sam_dlg(ts)
 	art_portrait_sam(28,20)
-	char_dlg(ts,"sam",clr_red)
+	char_dlg(ts,"sam",clr2+clr_red)
 end
 
 function buzz_dlg(ts)
 	art_portrait_buzz(70,20)
 	char_dlg(ts,"buzz",
-		clr_ora,clr_yel,clr_bla,clr_yel)
+		clr_ora,
+		clr_yel,
+		clr_bla,
+		clr2+clr_whi)
 end
 
 function char_dlg(ts,name,
 		bg,bg2,fg,border)
-	local y=80
+	fg=fg or clr_whi
+	bg2=bg2 or bg
+	local y=81
 	rectfill(
 		0,y,
 		4*#name+7,y+6,
@@ -1402,26 +1511,45 @@ function char_dlg(ts,name,
 	print(name,4,y+1,clr_bla)
 
 	y+=7
+	
+	--use 2nd palette for bottom
+	
+	--enable per-line palette
+	poke(0x5f5f,0x10)
+	--set up 2nd palette
+	pal({
+		[0]=bg,bg2,fg,border or 0
+	},2)
+	--apply 2nd palette to bottom
+	for i=0x5f70+y/8,0x5f7e do
+		poke(i,0xff)
+	end
+	
 	recthalftone(
 		0,y,
-		127,121,
-		bg,
-		bg2 or bg)
-	y+=4
+		127,120,
+		--2nd palette
+		0,
+		1)
+	y+=3
 	for _,t in pairs(ts) do
 		if border!=nil then
 			for i=-1,1 do
 				for j=-1,1 do
-					print_font1(t,4+i,y+j,border)
+					print_font1(t,4+i,y+j,
+						--2nd palette
+						border and 3)
 				end
 			end
 		end
-		print_font1(t,4,y,fg)
+		print_font1(t,4,y,
+			--2nd palette
+			2)
 		y+=7
 	end
 
 	rectfill(
-		0,121,
+		0,120,
 		127,127,
 		clr_bla)
 	print_font1("❎ continue",4,122)
@@ -1439,6 +1567,35 @@ function sproutline(n,c,x,y)
   pal()
   spr(n,x,y)
 end
+
+function transition1(pct)
+	--per-line palette
+	poke(0x5f5f,0x10)
+	if pct<0.5 then
+		pal(pal_dark,2)
+		pct*=2
+	elseif pct<0.99 then
+		pal(pal_dark,1)
+		pal(pal_black,2)
+		pct=pct*2-1
+	else
+		pal()
+		cls(0)
+	end
+
+	local ysplit=flr(64*pct)
+	for blk=0,15 do
+		local byte=0
+		for bit=7,0,-1 do
+			byte=byte<<1
+			local y=blk*8+bit
+			if(y<=ysplit)byte=byte|1
+			if(y>=128-ysplit)byte=byte|1
+		end
+		poke(0x5f70+blk,byte)
+	end
+end
+
 __gfx__
 0000000011111111000bb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033333333
 000000001111111100075400000bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000033333333
