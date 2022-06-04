@@ -469,6 +469,7 @@ function lvl01_update()
 			}
 			change_scene(scn.levelstart)
 		end
+		return
 	end
 
 	if btndn[btn_x] then
