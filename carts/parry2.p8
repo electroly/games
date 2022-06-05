@@ -9,7 +9,7 @@ function _init()
 	show_debug_info=true
 
 	--0=easy, 1=medium, 2=hard
-	difficulty=2
+	difficulty=0
 
 	--button constants
 	btn_l=0
@@ -94,7 +94,7 @@ function _init()
 	map_px=2
 	map_py=3
 	
-	change_scene(scn.g04)
+	change_scene(scn.levelend)
 end
 
 function _update60()
@@ -188,11 +188,13 @@ function _draw()
 	end
 	
 	if show_debug_info then
-		local mem=flr(100*stat(0)/2048)
 		local cyc=flr(100*stat(1))
-		print(
-			"c:"..cyc.."% m:"..mem.."%",
-			60,0,clr_red)
+		for i=-1,1 do
+			for j=-1,1 do
+				print(cyc.."%",112+i,1+j,clr_bla)
+			end
+		end
+		print(cyc.."%",112,1,clr_whi)
 	end
 end
 
@@ -473,7 +475,7 @@ function l01_init()
 	playlist={
 		scn.g01
 		--,scn.g02
-		--,scn.g03
+		--,scn.g04
 	}
 	playlist_level=1
 end
@@ -939,8 +941,12 @@ function levelend_update()
 end
 
 function levelend_draw()
-	cls(clr_dblu)
-	draw_dlg({"parry cleared the level!"},20,clr_blu)
+	pal(clr_dblu,clr2+clr_whi,1)
+	pal(clr_ora,clr2+clr_ora,1)
+	recthalftone(0,0,127,127,clr_dblu,clr_ora)
+	art_portrait_parry(10,30)
+	draw_dlg({"parry cleared the level!"},5,
+		clr_whi,clr_bla)
 end
 --end levelend--
 
@@ -966,7 +972,7 @@ function gamesuccess_draw()
 		centerx(font1_width(t)),
 		40)
 
-	if (flr(ctr/30)%2)==0 then
+	if stat(50)%4<2 then
 		art_parry_sitting(
 			55,70,0.4)
 	else
@@ -1478,7 +1484,8 @@ function font1_width(t)
 end
 ---end font1
 
-function draw_dlg(ts,y,bg)
+function draw_dlg(ts,y,bg,fg)
+	fg=fg or clr_whi
 	bg=bg or clr_dpur
 	local maxw=0
 	for _,t in pairs(ts) do
@@ -1491,7 +1498,7 @@ function draw_dlg(ts,y,bg)
 		bg)
 	y+=8
 	for _,t in pairs(ts) do
-		print_font1(t,x+8,y)
+		print_font1(t,x+8,y,fg)
 		y+=6
 	end
 end
