@@ -87,6 +87,7 @@ function _init()
 		,g05=14 --endless runner
 		--levels
 		,l01=100 --buzz
+		,l02=101 --ms. hiss
 	}
 	
 	playlist={}
@@ -97,7 +98,7 @@ function _init()
 	map_px=2
 	map_py=3
 	
-	change_scene(scn.title)
+	change_scene(scn.l02)
 end
 
 function _update60()
@@ -151,6 +152,8 @@ function _update60()
 		levelend_update()
 	elseif scene==scn.l01 then
 		l01_update()
+	elseif scene==scn.l02 then
+		l02_update()
 	end
 end
 
@@ -201,6 +204,8 @@ function _draw()
 		levelend_draw()
 	elseif scene==scn.l01 then
 		l01_draw()
+	elseif scene==scn.l02 then
+		l02_draw()
 	end
 	
 	if show_debug_info then
@@ -256,6 +261,8 @@ function change_scene(n)
 		levelend_init()
 	elseif scene==scn.l01 then
 		l01_init()
+	elseif scene==scn.l02 then
+		l02_init()
 	end
 end
 
@@ -521,8 +528,7 @@ function l01_update()
 end
 
 function l01_draw()
-	rectfill(0,0,127,127,
-		clr_dgre)
+	cls(clr_dgre)
 	if l01_step==0 then
 		buzz_dlg({
 			"hey, parry! parry!"
@@ -561,6 +567,94 @@ function l01_draw()
 	end
 end
 --end l01--
+
+--l02--
+function l02_init()
+	--music(10)
+	l02_step=0
+	l02_end_ctr=nil
+	
+	difficulty=1
+	g05_tx=16
+	g05_ty=0
+	playlist={
+		scn.g02
+		,scn.g04
+		,scn.g03
+		,scn.g05
+	}
+	playlist_level=2
+end
+
+function l02_update()
+	if l02_end_ctr!=nil then
+		l02_end_ctr+=1
+		if l02_end_ctr==60 then
+			lvlstr_ts={
+				"complete 3 games for",
+				"ms. hiss, then escape!"
+			}
+			change_scene(scn.levelstart)
+		end
+		return
+	end
+
+	if btndn[btn_x] then
+		sfx(0,3)
+		l02_step+=1
+		if(l02_step==7)l02_end_ctr=0
+	end
+end
+
+function l02_draw()
+	pal(clr_dblu,clr2+clr_blu,1)
+	cls(clr_dblu)
+	if l02_step==0 then
+		hiss_dlg({
+			"hisssss! you there!"
+			,""
+			,"identify yourself!"
+		})
+	elseif l02_step==1 then
+		parry_dlg({
+			"well aren't you a cute"
+			,"little snake!"
+		})
+	elseif l02_step==2 then
+		hiss_dlg({
+			"excuse me! i control this"
+			,"river crossing!"
+		})
+	elseif l02_step==3 then
+		parry_dlg({
+			"if you say so. my name is"
+			,"parry and i'm on a quest to"
+			,"save uncle matt!"
+		})
+	elseif l02_step==4 then
+		hiss_dlg({
+			"uncle matt? hissss!"
+			,""
+			,"never heard of him!"
+		})
+	elseif l02_step==5 then
+		parry_dlg({
+			"well, i've never heard of"
+			,"you either!"
+		})
+	elseif l02_step>=6 then
+		hiss_dlg({
+			"hissss! how dare you!"
+			,""
+			,"prepare for a fight!"
+		})
+	end
+	
+	if l02_end_ctr!=nil then
+		transition1(l02_end_ctr/30)
+	end
+end
+--end l02--
 
 -->8
 --art
@@ -907,6 +1001,26 @@ function art_portrait_buzz(x,y)
 		,"9999 0000 2535 2129 1729 0730 0133"
 		--eye
 		,"0007 3235 3537 3239 3038 3036 3235"
+	})
+end
+
+function art_portrait_hiss(x,y)
+	poly_start(x,y,0.75,0.75)
+	polys({
+		"0004 0048 1460 2264 3065 3070 2368 1765 1261 0555 0048"
+		,"0004 3365 4364 4863 5262 5861 6560 8060 8661 9062 9263 9464 9565 7868 5968 5369 4470 3370 3365"
+		,"0004 9565 7868 8570 8771 8773 8674 8275 7777 6978 6688 6989 7489 8388 8986 9582 9976 9970 9868 9565"
+		,"0004 3173 3874 4575 5376 6177 6978 6688 5688 4987 4186 3285 3173"
+		,"0004 3173 1973 1574 1176 0780 0584 0587 0892 1395 1997 2297 2691 2487 2187 1986 2184 2784 3285 3173"
+		,"0009 2487 2691 2986 2762 2847 2834 2721 2614 2007 1612 1621 1927 2232 2641 2649 2566 2682 2586 2487"
+		,"0009 3448 3535 3521 3314 3006 2803 3003 3608 4011 4317 4326 4033 3740 3448"
+		,"0010 2297 2597 2996 3295 3591 3688 3680 3462 3448 3536 2835 2848 2762 2986 2691 2297"
+		,"0008 2835 3536 3528 2728 2835"
+		,"0010 2728 2721 2614 2007 1905 1903 2302 2803 3006 3313 3521 3528 2728"
+		,"9999 0000 1905 2207 2808"
+		,"9999 0000 2504 2705"
+		,"9999 0000 1905 1505 1206"
+		,"9999 0000 1505 1203"
 	})
 end
 -->8
@@ -1941,6 +2055,15 @@ function buzz_dlg(ts)
 		clr_yel,
 		clr_bla,
 		clr2+clr_whi)
+end
+
+function hiss_dlg(ts)
+	art_portrait_hiss(50,20)
+	char_dlg(ts,"ms. hiss",
+		clr_red,
+		clr2+clr_red,
+		clr_whi,
+		clr2+clr_red)
 end
 
 function char_dlg(ts,name,
